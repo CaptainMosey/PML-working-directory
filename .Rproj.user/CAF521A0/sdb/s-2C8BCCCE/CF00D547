@@ -1,10 +1,10 @@
 {
-    "contents" : "",
+    "contents" : "Covariate Creation\n===================\n  \n  could probably take this out....\n\n```{r, echo=TRUE, cache=TRUE}\n#do I need to make the classn column first?\n\nM<-abs(cor(train[,8:ncol(train)-1]))\ndiag(M)<-0\nwhich(M>0.8, arr.ind=T)\nprint(M)\n\n\n\n\n\n\nfeaturePlot(x=train[,c(\"roll_belt\",\"pitch_belt\",\"yaw_belt\")], y=train$classe,plot=\"pairs\")\n\nfeaturePlot(x=train[,c(\"roll_arm\",\"pitch_arm\", \"yaw_arm\")], y=train$classe,plot=\"pairs\")\n\nfeaturePlot(x=train[,c(\"roll_dumbbell\",\"pitch_dumbbell\", \"yaw_dumbbell\")], y=train$classe,plot=\"pairs\")\n\nfeaturePlot(x=train[,c(\"roll_forearm\",\"pitch_forearm\", \"yaw_forearm\")], y=train$classe,plot=\"pairs\")\n```",
     "created" : 1434338276198.000,
-    "dirty" : false,
+    "dirty" : true,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "0",
+    "hash" : "3137073170",
     "id" : "CF00D547",
     "lastKnownWriteTime" : 1434338292,
     "path" : "~/MOOC/Coursera - predictive machine learning/Practical Machine Learning project/extra.R",
