@@ -1,28 +1,21 @@
 ---
-title: "Practical Machine Learning"
+title: "Practical Machine Learning - Human Activity Recognition"
 author: "Erik"
 date: "06/14/2015"
 output: html_document
 ---
 
 Executive summary
---------------------
+=================
 
-The Weight Lifting Exercises (WLE) dataset was produced by having 6 participants performing dumbbel curls properly amd improperly while activities were recorded by 4 "on-body" sensors (footnote 1). Using a random forest method, I was able to produce an algorithm which can correctly assign activity quality with an out of sample error rate of XXXXX, as confirmed by cross-validation. this algorithm was then used to correctly classify unknown activity quality in the "pml=-testing.csv" data set.
+The Weight Lifting Exercises (WLE) dataset was produced by having 6 participants performing dumbbell curls properly and improperly while activities were recorded by 4 "on-body" sensors (footnote 1). Using a random forest method, I was able to generate a model which can correctly assign activity quality with an out of sample error rate of 0.8%, as confirmed by cross-validation. This algorithm was then used to correctly classify unknown activity quality in the "pml=testing.csv" data set.
 
+Set Seed and Load Data
+-------------
 
+In preparation for analysis, the random number seed was set and the data were loaded from csv files downloaded from the course website. Setting the random number seed allows the generation of the same random numbers every time the R markdown is run, which makes the data more easily reproduced. R packages ISLR, caret, Hmisc, RANN, ggplot2, and rattle were loaded into R studio.
 
-
-
-
-Set Seed Load Data
-------------------------------
-
-In preparation for analysis, the random number seed was set to allow reproducibility and the data were loaded from csv files downloaded from the course website. R packages ISLR,caret,Hmisc,RANN,ggplot2, and rattle were loaded into R studio.
-
-
-
-```{r, echo=FALSE, cache=TRUE}
+```{r, echo=FALSE}
 #take these out
 library(ISLR)
 library(caret)
@@ -33,21 +26,19 @@ library(rattle)
 ```
 ```{r, echo=TRUE, cache=TRUE}
 set.seed(365)
-
 pml.training<-read.csv("pml-training.csv")
 pml.testing<-read.csv("pml-testing.csv")
 ```
 
 Building the model 
-------------------
+================
 
 Data Slicing
-============
+------------------
 
-The training set data were then sliced into train and test segments (60/40) to allow for cross-validation of the method on an untouched test set.
+The training set data were then sliced into train and test segments (60/40). By developing the model entirely on a subset of the training data, the remainder of the training set can be used for cross-validation and serves as a good measure of the out of sample error rate (the error rate when applying the model to new data).
 
-
-```{r, echo=TRUE, cache=TRUE}
+```{r, echo=TRUE}
 inTrain<-createDataPartition(y=pml.training$classe,p=0.6,list=FALSE)
 
 train<-pml.training[inTrain,]
@@ -55,127 +46,99 @@ test<-pml.training[-inTrain,]
 ```
 
 Pre-processing
-===============
+----------------
 
-This train set was then processing to remove columns which were constant (not useful in the model), and missing data was imputed using the knnImpute method. Imputing was performed for all sensor data columns in the data set (columns 8, through the next-to-last column which was the "classe" exercise quality factor).
+This training set was then processed to remove columns where the variable was essentially constant (these are not useful in the model), and missing data was imputed using the knnImpute method. Imputing was performed for all sensor data columns in the data set (columns 8, through the next-to-last column which was the "classe" exercise quality factor). Imputing missing data prevents us from needing to discard data points just because another data point is missing in that set.
 
-```{r, echo=TRUE, cache=TRUE}
+```{r, echo=TRUE}
 removeColumns=nearZeroVar(x=train,freqCut=95/5)
 
 train<-train[,-removeColumns]
-#changed to -1 from -2, 6/14/15 6:04p
-imputeObj=preProcess(train[,8:ncol(train)-2],method="knnImpute")
-train[,8:ncol(train)-2]<-predict(imputeObj,train[,8:ncol(train)-2])
+
+imputeObj=preProcess(train[,8:ncol(train)-1],method="knnImpute")
+train[,8:ncol(train)-1]<-predict(imputeObj,train[,8:ncol(train)-1])
 ```
 
 Fitting a Linear Regression Model
-================================
+----------------
 
-The data was processed further to fit a linear model. An additional column was created to change the exercise quality factor (A,B,C,D,E) to a numeric value (1,2,3,4,5). Alinear model was fit (lm1). Using this model on the cross-validation data showed poor results (out of sample error - XXXXXXXXXX)
+The data were processed further to fit a linear model. An additional column ('classn') was created to change the exercise quality factor (A,B,C,D,E) to a numeric value (1,2,3,4,5). A linear model was fit (lm1), and predictions relative to true values are plotted in Figure 1. Obviously, the predictions all overlap and would not be good indicators of exercise quality metrics, even on the training set. This is not surprising, because a linear model is unlikely to predict multivariate data. R also produces a warning that the fit is "rank-deficient", meaning that the data is unable to fit this model.
 
-
-```{r, echo=TRUE, cache=TRUE}
+```{r, echo=TRUE}
 for(i in 1:nrow(train)){
   train$classn[i]<-utf8ToInt(as.character(train$classe[i]))-64
 }
 
-
-#M<-abs(cor(train))
-#diag(M)<-0
-#which(M>0.8, arr.ind=T)
-#subset train
 x<-colnames(train[,c(8:ncol(train)-2,ncol(train))])
 train2<-train[,c(8:ncol(train)-2,ncol(train))]
-colnames(train2)<-x
-#predict w regression
 
+colnames(train2)<-x
 lm1<-lm(classn~.,data=train2)
 pred<-predict(lm1,train2)
 qplot(classn,pred,data=train2)
-#pml.training$class<-dummyVars(pml.training)
-
-lmTrain<-predict(lm1,train2)
-train2$predRight<-lmTrain==train2$classe
-#print(table(lmTrain,train2$classe))
-
-
+print("Figure 1. Linear model fit to training dataset.")
 
 ```
 
 Random Forest Model
-==================
+-----------------
 
-The data were then reprocessed to remove the "classn" column, and a random forest method was used to generate an algorithm. When tested on the cross-validation sample, an estimated out of sample error of XXXX was seen. 
+A random forest model is a much better choice for this multivariate data. By generating decision trees with bootstrapped samples, and then bootstrapping variables at each decision point, it is well suited to work with large sets of variables. 
 
+The data were then reprocessed to remove the "classn" column, and a random forest method was used to generate a model. 
 
-```{r, echo=TRUE, cache=TRUE}
+```{r, echo=TRUE}
 
-#try trees
 x<-colnames(train[,c(8:ncol(train)-1)])
 train2<-train[,c(8:ncol(train)-1)]
 colnames(train2)<-x
 
 
-
-
-#modFit<-train(classe~.,method="rpart2",data=train2,maxdepth=10)
 modFit<-train(classe~.,method="rf",data=train2,prox=TRUE)
 print(modFit)
-#getTree(modFit$finalModel,k=2)
-
-
-#print(predict(modFit,newdata=train2))
-plot(train$classe,(predict(modFit,newdata=train2)))
-#print(predict(modFit,newdata=trainL))
+print("Figure 2. Summary of parameters in random forest model")
 
 
 predTrain=predict(modFit,train2)
 train2$predRight<-predTrain==train2$classe
 print(table(predTrain,train2$classe))
-
+print("Figure 3. Comparison of predicted and true values on the training set")
 
 ```
 Cross Validation
-=============================
+---------------
 
+The cross-validation data set was processed idenitcally to the training set and run through the random forest algorithm. Comparing the number of correct predictions (7777) out of the validation data set (7846) gives an out of sample error rate of 0.8%.
 
-The cross-validation data set was processed idenitcally to the training set and run through the random forest algorithm. 
+```{r, echo=TRUE}
 
-```{r, echo=TRUE, cache=TRUE}
-#remove same columns as from training sets
 test<-test[,-removeColumns]
 
-#Impute same- changed to -1 from -2 6:24pm 6/14/15
-#test data has "problem ID column instead of classe"
 test[,8:ncol(test)-1]<-predict(imputeObj,test[,8:ncol(test)-1])
-
-
 
 predTest=predict(modFit,test)
 test$predRight<-predTest==test$classe
 print(table(predTest,test$classe))
+print("Figure 3. Comparison of predicted and true values on the cross-validation set")
 
 #out of sample error
-
 OSE<-1-(sum(test$predRight/nrow(test)))
-print(paste("The out of sample error is ",toString(OSE),", with ",toString(sum(test$predRight)),"correct predicitions out of ",toString(nrow(test)," samples.")))
+print(paste("The out of sample error is ",toString(OSE*100),"%, with ",toString(sum(test$predRight)),"correct predicitions out of ",toString(nrow(test)," samples.")))
 
 ```
-Assign Excercise Quality on Testing Data
-===================================
+Assign Excercise Quality Categories to Testing Data
+-------------------------------------------
 
-Finally, process the testing data and assign excercise quality for the 20 unknowns:
+Finally, process the testing data and use the model created and cross-validated to assign excercise quality for the 20 unknown samples:
 
-
-
-```{r, echo=TRUE, cache=TRUE}
+```{r, echo=TRUE}
 
 #remove same columns as from training sets
 pml.testing<-pml.testing[,-removeColumns]
-summary(pml.testing)
-#Impute same- changed to -1 from -2 6:24pm 6/14/15
-#test data has "problem ID column instead of classe"
-pml.testing[,8:ncol(pml.testing)-2]<-predict(imputeObj,pml.testing[,8:ncol(pml.testing)-2])
+
+
+#test data has "problem ID" column instead of classe
+pml.testing[,8:ncol(pml.testing)-1]<-predict(imputeObj,pml.testing[,8:ncol(pml.testing)-1])
 
 
 predTesting=predict(modFit,pml.testing)
@@ -184,8 +147,15 @@ ans<-pml.testing$problem_id
 ans<-cbind(ans,as.character(pml.testing$pred))
 
 print(ans)
-
+print("Figure 5. Predicted exercise quality category for 20 unknown samples in testing dataset.")
+ 
 
 
 ```
 
+
+
+
+1)  Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3d6LWGFeH
