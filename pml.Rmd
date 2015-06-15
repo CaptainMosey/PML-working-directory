@@ -1,0 +1,182 @@
+---
+title: "Practical Machine Learning"
+author: "Erik"
+date: "06/14/2015"
+output: html_document
+---
+
+Executive summary
+--------------------
+
+The Weight Lifting Exercises (WLE) dataset was produced by having 6 participants performing dumbbel curls properly amd improperly while activities were recorded by 4 "on-body" sensors (footnote 1). Using a random forest method, I was able to produce an algorithm which can correctly assign activity quality with an out of sample error rate of XXXXX, as confirmed by cross-validation. this algorithm was then used to correctly classify unknown activity quality in the "pml=-testing.csv" data set.
+
+
+
+
+
+
+Set Seed Load Data
+------------------------------
+
+In preparation for analysis, the random number seed was set to allow reproducibility and the data were loaded from csv files downloaded from the course website. R packages ISLR,caret,Hmisc,RANN,ggplot2, and rattle were loaded into R studio.
+
+
+
+```{r, echo=FALSE, cache=TRUE}
+#take these out
+library(ISLR)
+library(caret)
+library(Hmisc)
+library(RANN)
+library(ggplot2)
+library(rattle)
+```
+```{r, echo=TRUE, cache=TRUE}
+set.seed(365)
+
+pml.training<-read.csv("pml-training.csv")
+pml.testing<-read.csv("pml-testing.csv")
+```
+
+Building the model 
+------------------
+
+Data Slicing
+============
+
+The training set data were then sliced into train and test segments (60/40) to allow for cross-validation of the method on an untouched test set.
+
+
+```{r, echo=TRUE, cache=TRUE}
+inTrain<-createDataPartition(y=pml.training$classe,p=0.6,list=FALSE)
+
+train<-pml.training[inTrain,]
+test<-pml.training[-inTrain,]
+```
+
+Pre-processing
+===============
+
+This train set was then processing to remove columns which were constant (not useful in the model), and missing data was imputed using the knnImpute method. Imputing was performed for all sensor data columns in the data set (columns 8, through the next-to-last column which was the "classe" exercise quality factor).
+
+```{r, echo=TRUE, cache=TRUE}
+removeColumns=nearZeroVar(x=train,freqCut=95/5)
+
+train<-train[,-removeColumns]
+#changed to -1 from -2, 6/14/15 6:04p
+imputeObj=preProcess(train[,8:ncol(train)-1],method="knnImpute")
+train[,8:ncol(train)-2]<-predict(imputeObj,train[,8:ncol(train)-1])
+```
+Covariate Creation
+===================
+
+could probably take this out....
+
+```{r, echo=TRUE, cache=TRUE}
+#do I need to make the classn column first?
+
+M<-abs(cor(train[,8:ncol(train)-1]))
+diag(M)<-0
+which(M>0.8, arr.ind=T)
+print(M)
+
+
+
+
+
+
+featurePlot(x=train[,c("roll_belt","pitch_belt","yaw_belt")], y=train$classe,plot="pairs")
+
+featurePlot(x=train[,c("roll_arm","pitch_arm", "yaw_arm")], y=train$classe,plot="pairs")
+
+featurePlot(x=train[,c("roll_dumbbell","pitch_dumbbell", "yaw_dumbbell")], y=train$classe,plot="pairs")
+
+featurePlot(x=train[,c("roll_forearm","pitch_forearm", "yaw_forearm")], y=train$classe,plot="pairs")
+```
+Fitting a Linear Regression Model
+================================
+
+The data was processed further to fit a linear model. An additional column was created to change the exercise quality factor (A,B,C,D,E) to a numeric value (1,2,3,4,5). Alinear model was fit (lm1). Using this model on the cross-validation data showed poor results (out of sample error - XXXXXXXXXX)
+
+
+```{r, echo=TRUE, cache=TRUE}
+for(i in 1:nrow(train)){
+  train$classn[i]<-utf8ToInt(as.character(train$classe[i]))-64
+}
+
+
+#M<-abs(cor(train))
+#diag(M)<-0
+#which(M>0.8, arr.ind=T)
+#subset train
+x<-colnames(train[,c(8:ncol(train)-2,ncol(train))])
+train2<-train[,c(8:ncol(train)-2,ncol(train))]
+colnames(train2)<-x
+#predict w regression
+
+lm1<-lm(classn~.,data=train2)
+pred<-predict(lm1,train2)
+qplot(classn,pred,data=train2)
+#pml.training$class<-dummyVars(pml.training)
+
+lmTrain=predict(lm1,train2)
+train2$predRight<-lmTrain==train2$classe
+print(table(lmTrain,train2$classe))
+
+```
+
+Random Forest Model
+==================
+
+The data were then reprocessed to remove the "classn" column, and a random forest method was used to generate an algorithm. When tested on the cross-validation sample, an estimated out of sample error of XXXX was seen. 
+
+
+```{r, echo=TRUE, cache=TRUE}
+
+#try trees
+x<-colnames(train[,c(8:ncol(train)-1)])
+train2<-train[,c(8:ncol(train)-1)]
+colnames(train2)<-x
+
+
+
+
+#modFit<-train(classe~.,method="rpart2",data=train2,maxdepth=10)
+modFit<-train(classe~.,method="rf",data=train2,prox=TRUE)
+print(modFit)
+#getTree(modFit$finalModel,k=2)
+
+
+#print(predict(modFit,newdata=train2))
+plot(train$classe,(predict(modFit,newdata=train2)))
+#print(predict(modFit,newdata=trainL))
+
+
+predTrain=predict(modFit,train2)
+train2$predRight<-predTrain==train2$classe
+print(table(predTrain,train2$classe))
+
+```
+Applying Model to Test Data
+=============================
+
+
+Finally, the test data set was processed idenitcally to the training set and run through the random forest algorithm. 
+
+```{r, echo=TRUE, cache=TRUE}
+#remove same columns as from training sets
+test<-test[,-removeColumns]
+summary(test)
+#Impute same- changed to -1 from -2 6:24pm 6/14/15
+test[,8:ncol(test)-1]<-predict(imputeObj,test[,8:ncol(test)-1])
+
+plot(test$classe,(predict(modFit,newdata=test)))
+
+predTest=predict(modFit,test)
+test$predRight<-predTest==test$classe
+print(table(predTest,test$classe))
+
+
+
+```
+

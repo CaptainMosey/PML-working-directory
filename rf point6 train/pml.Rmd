@@ -1,0 +1,140 @@
+---
+title: "Practical Machine Learning"
+author: "Erik"
+date: "06/14/2015"
+output: html_document
+---
+
+don't forget to credit the data set in the intro
+
+First, slice the data set
+
+K-folds=10
+
+```{r, cache=TRUE}
+library(ISLR)
+library(caret)
+library(Hmisc)
+library(RANN)
+library(ggplot2)
+library(rattle)
+set.seed(365)
+
+#load from file
+inTrain<-createDataPartition(y=pml.training$classe,p=0.6,list=FALSE)
+
+train<-pml.training[inTrain,]
+test<-pml.training[-inTrain,]
+
+#inTrain<-createDataPartition(y=test$classe,p=0.05,list=FALSE)
+
+#trainL<-test[inTrain,]
+#test<-test[-inTrain]
+
+
+#eliminate variables that dont cahange
+removeColumns=nearZeroVar(x=train,freqCut=95/5)
+
+train<-train[,-removeColumns]
+#summary(train)
+#alot of skewed variables
+
+#preObject<-preProcess(train,method=c("center","scale"))
+#train<-predict(preObject,train)
+
+#imputing
+imputeObj=preProcess(train[,8:ncol(train)-2],method="knnImpute")
+train[,8:ncol(train)-2]<-predict(imputeObj,train[,8:ncol(train)-2])
+
+
+
+featurePlot(x=train[,c("roll_belt","pitch_belt","yaw_belt")], y=train$classe,plot="pairs")
+
+featurePlot(x=train[,c("roll_arm","pitch_arm", "yaw_arm")], y=train$classe,plot="pairs")
+
+featurePlot(x=train[,c("roll_dumbbell","pitch_dumbbell", "yaw_dumbbell")], y=train$classe,plot="pairs")
+
+featurePlot(x=train[,c("roll_forearm","pitch_forearm", "yaw_forearm")], y=train$classe,plot="pairs")
+
+
+for(i in 1:nrow(train)){
+  train$classn[i]<-utf8ToInt(as.character(train$classe[i]))-64
+}
+
+M<-abs(cor(train$classn,(train[,8:ncol(train)-2])))
+diag(M)<-0
+which(M>0.8, arr.ind=T)
+print(M)
+#M<-abs(cor(train))
+#diag(M)<-0
+#which(M>0.8, arr.ind=T)
+#subset train
+x<-colnames(train[,c(8:ncol(train)-2,ncol(train))])
+train2<-train[,c(8:ncol(train)-2,ncol(train))]
+colnames(train2)<-x
+#predict w regression
+
+lm1<-lm(classn~.,data=train2)
+pred<-predict(lm1,train2)
+qplot(classn,pred,data=train2)
+#pml.training$class<-dummyVars(pml.training)
+
+#try trees
+x<-colnames(train[,c(8:ncol(train)-1)])
+train2<-train[,c(8:ncol(train)-1)]
+colnames(train2)<-x
+
+
+
+
+#modFit<-train(classe~.,method="rpart2",data=train2,maxdepth=10)
+modFit<-train(classe~.,method="rf",data=train2,prox=TRUE)
+print(modFit)
+getTree(modFit$finalModel,k=2)
+
+
+print(predict(modFit,newdata=train2))
+plot(train$classe,(predict(modFit,newdata=train2)))
+#print(predict(modFit,newdata=trainL))
+
+
+predTrain=predict(modFit,train2)
+train2$predRight<-predTrain==train2$classe
+print(table(predTrain,train2$classe))
+
+
+
+#Taketest data and do same
+
+#eliminate variables that dont cahange
+test<-test[,-removeColumns]
+summary(test)
+#alot of skewed variables
+
+#preObject<-preProcess(train,method=c("center","scale"))
+#train<-predict(preObject,train)
+
+#imputing
+#imputeObj=preProcess(test[,8:ncol(test)-2],method="knnImpute")
+test[,8:ncol(test)-2]<-predict(imputeObj,test[,8:ncol(test)-2])
+
+print(predict(modFit,newdata=test))
+plot(test$classe,(predict(modFit,newdata=test)))
+#print(predict(modFit,newdata=trainL))
+
+
+predTest=predict(modFit,test)
+test$predRight<-predTest==test$classe
+print(table(predTest,test$classe))
+
+
+
+```
+
+text
+
+```{r, echo=FALSE}
+#plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
