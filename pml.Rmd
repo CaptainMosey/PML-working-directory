@@ -64,8 +64,8 @@ removeColumns=nearZeroVar(x=train,freqCut=95/5)
 
 train<-train[,-removeColumns]
 #changed to -1 from -2, 6/14/15 6:04p
-imputeObj=preProcess(train[,8:ncol(train)-1],method="knnImpute")
-train[,8:ncol(train)-2]<-predict(imputeObj,train[,8:ncol(train)-1])
+imputeObj=preProcess(train[,8:ncol(train)-2],method="knnImpute")
+train[,8:ncol(train)-2]<-predict(imputeObj,train[,8:ncol(train)-2])
 ```
 Covariate Creation
 ===================
@@ -156,25 +156,57 @@ predTrain=predict(modFit,train2)
 train2$predRight<-predTrain==train2$classe
 print(table(predTrain,train2$classe))
 
+
 ```
-Applying Model to Test Data
+Cross Validation
 =============================
 
 
-Finally, the test data set was processed idenitcally to the training set and run through the random forest algorithm. 
+The cross-validation data set was processed idenitcally to the training set and run through the random forest algorithm. 
 
 ```{r, echo=TRUE, cache=TRUE}
 #remove same columns as from training sets
 test<-test[,-removeColumns]
-summary(test)
+
 #Impute same- changed to -1 from -2 6:24pm 6/14/15
+#test data has "problem ID column instead of classe"
 test[,8:ncol(test)-1]<-predict(imputeObj,test[,8:ncol(test)-1])
 
-plot(test$classe,(predict(modFit,newdata=test)))
+
 
 predTest=predict(modFit,test)
 test$predRight<-predTest==test$classe
 print(table(predTest,test$classe))
+
+#out of sample error
+
+OSE<-1-(sum(test$predRight/nrow(test)))
+print(paste("The out of sample error is ",toString(OSE),", with ",toString(sum(test$predRight)),"correct predicitions out of ",toString(nrow(test)," samples.")))
+
+```
+Assign Excercise Quality on Testing Data
+===================================
+
+Finally, process the testing data and assign excercise quality for the 20 unknowns:
+
+
+
+```{r, echo=TRUE, cache=TRUE}
+
+#remove same columns as from training sets
+pml.testing<-pml.testing[,-removeColumns]
+summary(pml.testing)
+#Impute same- changed to -1 from -2 6:24pm 6/14/15
+#test data has "problem ID column instead of classe"
+pml.testing[,8:ncol(pml.testing)-2]<-predict(imputeObj,pml.testing[,8:ncol(pml.testing)-2])
+
+
+predTesting=predict(modFit,pml.testing)
+pml.testing$pred<-predTesting
+ans<-pml.testing$problem_id
+ans<-cbind(ans,as.character(pml.testing$pred))
+
+print(ans)
 
 
 
