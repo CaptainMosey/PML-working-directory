@@ -62,7 +62,7 @@ train[,8:ncol(train)-1]<-predict(imputeObj,train[,8:ncol(train)-1])
 Fitting a Linear Regression Model
 ----------------
 
-The data were processed further to fit a linear model. An additional column ('classn') was created to change the exercise quality factor (A,B,C,D,E) to a numeric value (1,2,3,4,5). A linear model was fit (lm1), and predictions relative to true values are plotted in Figure 1. Obviously, the predictions all overlap and would not be good indicators of exercise quality metrics, even on the training set. This is not surprising, because a linear model is unlikely to predict multivariate data. R also produces a warning that the fit is "rank-deficient", meaning that the data is unable to fit this model.
+The data were processed further to fit a linear model. An additional column ('classn') was created to change the exercise quality factor (A,B,C,D,E) to a numeric value (1,2,3,4,5). A linear model was fit (lm1), and predictions relative to true values are plotted in Figure 1. Obviously, the predictions all overlap and would not be good indicators of exercise quality metrics, even on the training set. This is not surprising, because linear regression often has poor performance in nonlinear settings. R also produces a warning that the fit is "rank-deficient", meaning that the data is unable to fit this model.
 
 ```{r, echo=TRUE}
 for(i in 1:nrow(train)){
