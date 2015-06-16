@@ -8,7 +8,7 @@ output: html_document
 Executive summary
 =================
 
-The Weight Lifting Exercises (WLE) dataset was produced by having 6 participants performing dumbbell curls properly and improperly while activities were recorded by 4 "on-body" sensors (footnote 1). Using a random forest method, I was able to generate a model which can correctly assign activity quality with an out of sample error rate of 0.8%, as confirmed by cross-validation. This algorithm was then used to correctly classify unknown activity quality in the "pml=testing.csv" data set.
+The Weight Lifting Exercises (WLE) dataset was produced by having 6 participants performing dumbbell curls properly and improperly while activities were recorded by 4 "on-body" sensors (footnote 1). Using a random forest method, I was able to generate a model which can correctly assign activity quality with an out of sample error rate of 0.9%, as confirmed by cross-validation. This algorithm was then used to correctly classify unknown activity quality in the "pml=testing.csv" data set.
 
 Set Seed and Load Data
 -------------
@@ -108,7 +108,7 @@ print("Figure 3. Comparison of predicted and true values on the training set")
 Cross Validation
 ---------------
 
-The cross-validation data set was processed idenitcally to the training set and run through the random forest algorithm. Comparing the number of correct predictions (7777) out of the validation data set (7846) gives an out of sample error rate of 0.8%.
+The cross-validation data set was processed idenitcally to the training set and run through the random forest algorithm. Comparing the number of correct predictions (7773) out of the validation data set (7846) gives an out of sample error rate of 0.9%.
 
 ```{r, echo=TRUE}
 
